@@ -1,6 +1,6 @@
 function [resultsTable_ARDL, resultsTable_HAC] = general_ardl_model_hac(y, X, p_lags, q_lags, hac_lag)
 % General ARDL Model Estimation
-% !!!!BEFORE YOU USE, CHECK THE FUNCTION 'newey_west_hac' IS ALREADY IN THE
+% !!!!BEFORE YOU USE, CHECK THE FUNCTION 'nwest.m' IS ALREADY IN THE
 % SAME PATH.
 % Inputs:
 % y      - Dependent variable (column vector)
@@ -88,8 +88,8 @@ tStats = beta ./ standardErrors;
 
 % Step 8: Create a table to display the results
 variableNames = ["Intercept"; arrayfun(@(i) ['Variable ' num2str(i)], 1:(numel(beta)-1), 'UniformOutput', false)'];
-resultsTable_ARDL = table(beta, standardErrors, tStats, ...
-    'VariableNames', {'Coefficient', 'StandardError', 'tStatistic'}, ...
+resultsTable_ARDL = table(beta, tStats, ...
+    'VariableNames', {'Coefficient', 'tStatistic'}, ...
     'RowNames', variableNames);
 
 % Display the table
@@ -100,16 +100,32 @@ disp(resultsTable_ARDL);
 % NW HAC
 %----------------
 y = y_adjusted;
-X = combinedMatrix;
+X = combinedMatrix_intercept;
 hac_lag = hac_lag;
 
 % Call Function to compute OLS regression coefficients and Newey-West HAC corrected covariance matrix
-[beta, HAC_cov, standardErrorsHAC, tStats, resultsTable_HAC] = newey_west_hac(X, y, hac_lag);
+results_HAC = nwest(y, X, hac_lag);
 
+rsqr_display = [results_HAC.rsqr, NaN(1,1)];
+dw_display = [results_HAC.dw, NaN(1,1)];
 % Show the Newey-West HAC Table
-resultsTable_HAC;
-% Display the table
-disp('Newey-West HAC Results:');
-disp(resultsTable_HAC);
+results_display = [results_HAC.beta, results_HAC.tstat; rsqr_display; dw_display];
+
+% Define row and column names
+rowNames_all = ["Intercept"; arrayfun(@(i) ['Variable ' num2str(i)], 1:(numel(beta)-1), 'UniformOutput', false)'; 'R-squre'; 'DW test'];
+
+columnNames_all = {'Coefficient', 'tStat'};
+
+% Create the table
+resultsTable_HAC = array2table(results_display, 'RowNames', rowNames_all, 'VariableNames', columnNames_all);
+disp('Newey-West HAC Results:')
+disp (resultsTable_HAC);
+
+% Display the significance level criteria
+fprintf('Significance levels based on t-statistics:\n');
+fprintf('|t| > 1.645 for 10%% significance\n');
+fprintf('|t| > 1.96 for 5%% significance\n');
+fprintf('|t| > 2.576 for 1%% significance\n');
+
 end
 
